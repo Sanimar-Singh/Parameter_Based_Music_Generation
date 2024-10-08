@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generated Music</title>
+</head>
+<body>
+    <h1>{{ prompt }}</h1>
+
+    {% if music_file_url %}
+        <audio controls>
+            <source src="{{ music_file_url }}" type="audio/wav">
+            Your browser does not support the audio element.
+        </audio>
+        <br>
+        <a href="{{ music_file_url }}" download>Download Music</a>
+    {% else %}
+        <p>No music available.</p>
+    {% endif %}
+</body>
+</html>

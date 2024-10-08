@@ -1,0 +1,187 @@
+{% comment %} <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generating Music...</title>
+    <style>
+        body {
+            text-align: center;
+            padding-top: 100px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            font-size: 4em;
+            animation: colorchange 2s infinite;
+        }
+
+        @keyframes colorchange {
+            0% { color: red; }
+            25% { color: blue; }
+            50% { color: green; }
+            75% { color: yellow; }
+            100% { color: red; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Generating...</h1>
+
+    {% if random_song_url %}
+        <audio id="audio-player" autoplay hidden>
+            <source id="audio-source" src="{{ random_song_url }}" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+    {% else %}
+        <p>No music available.</p>
+    {% endif %}
+
+    <script>
+        const audioPlayer = document.getElementById('audio-player');
+        const audioSource = document.getElementById('audio-source');
+
+        // Function to get a new random song from the server
+        function getRandomSong() {
+            fetch('/get-random-song')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.random_song_url) {
+                        audioSource.src = data.random_song_url;
+                        audioPlayer.load();
+                        audioPlayer.play();
+                    }
+                })
+                .catch(error => console.error('Error getting random song:', error));
+        }
+
+        // Play a new random song every 9 seconds
+        setInterval(getRandomSong, 9000);
+
+        // Poll the server to check if music generation is done
+        function checkMusicStatus() {
+            fetch('/generate-music-status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'done') {
+                        // Redirect to the page that shows the generated music
+                        window.location.href = `/music-generated/${data.file_name}`;
+                    } else {
+                        // Check again after 3 seconds
+                        setTimeout(checkMusicStatus, 3000);
+                    }
+                })
+                .catch(error => console.error('Error checking status:', error));
+        }
+    
+        // Start checking the music generation status after a delay
+        setTimeout(checkMusicStatus, 3000);
+    </script>
+
+</body>
+</html> {% endcomment %}
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generating Music...</title>
+    <style>
+        body {
+            text-align: center;
+            padding-top: 100px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            font-size: 4em;
+            animation: colorchange 2s infinite;
+        }
+
+        @keyframes colorchange {
+            0% { color: red; }
+            25% { color: blue; }
+            50% { color: green; }
+            75% { color: yellow; }
+            100% { color: red; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Generating...</h1>
+    <p> This may take a while, so sit back and enjoy the music! </p>
+
+
+    {% if random_song_url %}
+        <audio id="audio-player" autoplay hidden>
+            <source id="audio-source" src="{{ random_song_url }}" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+    {% else %}
+        <p>No music available.</p>
+    {% endif %}
+
+    <script>
+        const audioPlayer = document.getElementById('audio-player');
+        const audioSource = document.getElementById('audio-source');
+
+        // Function to get a new random song from the server
+        function getRandomSong() {
+            fetch('/get-random-song')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.random_song_url) {
+                        audioSource.src = data.random_song_url;
+                        audioPlayer.load();
+                        audioPlayer.play();
+                    }
+                })
+                .catch(error => console.error('Error getting random song:', error));
+        }
+
+        // Play a new random song every 9 seconds
+        setInterval(getRandomSong, 9000);
+
+        // Function to get the current file count from the server
+        let initialFileCount = 0;
+
+        function getFileCount() {
+            return fetch('/count-media-files')
+                .then(response => response.json())
+                .then(data => data.file_count)
+                .catch(error => console.error('Error getting file count:', error));
+        }
+
+        // Initial call to get the current number of files in the media directory
+        getFileCount().then(count => {
+            initialFileCount = count;
+        });
+
+        // Poll the server to check if a new file has been added
+        function checkForNewFile() {
+            getFileCount().then(currentFileCount => {
+                if (currentFileCount > initialFileCount) {
+                    // New file detected, redirect to the final page
+                    window.location.href = '/final/';
+                } else {
+                    // Check again after 3 seconds
+                    setTimeout(checkForNewFile, 3000);
+                }
+            });
+        }
+
+        // Start polling after a small delay
+        setTimeout(checkForNewFile, 3000);
+
+    </script>
+
+</body>
+</html>

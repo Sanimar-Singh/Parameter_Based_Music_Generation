@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us - Text to Music Generation</title>
+    <link rel="stylesheet" href="style.css"> <!-- Ensure this file exists -->
+    <style>
+        /* Basic reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1c1c1c;
+            color: #ffffff;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        /* Title styling */
+        h1 {
+            text-align: center;
+            font-size: 3rem;
+            margin-bottom: 30px;
+        }
+
+        /* Group members section */
+        .group-section {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .group-section h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #4db8ff;
+        }
+
+        .group-section ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .group-section ul li {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        /* Navigation styles for going back to home page */
+        .nav {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .nav a {
+            text-decoration: none;
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .nav a:hover {
+            background-color: #0056b3;
+        }
+        
+    </style>
+</head>
+<script src="script.js"></script>
+<body>
+
+    <!-- Page Title -->
+    <h1>About Us</h1>
+
+    <!-- Group Members Section -->
+    <div class="group-section">
+        <h2>Group Members</h2>
+        <ul>
+            <li>Aryan Nathani</li>
+            <li>Sanimar Singh</li>
+            <li>Manav Bhanushali</li>
+        </ul>
+    </div>
+
+    <!-- Navigation link back to Home Page -->
+    <div class="nav">
+        <a href='{% url "index" %}'>Back to Home</a>
+    </div>
+
+</body>
+</html>
