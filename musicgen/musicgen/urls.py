@@ -33,6 +33,8 @@ urlpatterns = [
     path('count-media-files', views.count_media_files, name='count_media_files'),
     path('final/', views.final_view, name='final'),  # New route for final page
     path('about', views.about_page, name='about'),
+    path('emotion/', views.emotion_view, name='emotion'),
+    path('detect_emotion/', views.detect_emotion, name='detect_emotion'),
 
 
 ]

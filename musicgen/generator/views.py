@@ -6,6 +6,18 @@ import os
 import torch
 from transformers import MusicgenForConditionalGeneration, AutoProcessor
 from scipy.io import wavfile
+import cv2
+from deepface import DeepFace
+import logging
+from django.http import JsonResponse, StreamingHttpResponse
+from django.views.decorators.csrf import csrf_exempt
+import numpy as np
+import base64
+from deepface import DeepFace
+import json
+import google.generativeai as genai
+
+
 
 # Load model once when the Django app starts
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -29,7 +41,9 @@ def generate_music_view(request):
     return render(request, 'generator/home.html')
 
 # Track music generation status (this can be more sophisticated with a task queue if necessary)
-generation_status = {'done': False, 'file_name': ''}
+# generation_status = {'done': False, 'file_name': ''}
+generation_status = {'done': False, 'file_name': '', 'prompt': '', 'emotion': ''}
+
 
 def loading_page_view(request):
     # Path to the directory containing your loading songs
@@ -158,3 +172,106 @@ def final_view(request):
 
     music_file_url = f'/media/{file_name}'
     return render(request, 'generator/final.html', {'prompt': prompt, 'music_file_url': music_file_url})
+
+
+def emotion_view(request):
+    """Render the emotion detection page"""
+    return render(request, 'generator/emotion.html')
+    # return render(request, 'emotion.html')
+
+# @csrf_exempt
+# def detect_emotion(request):
+#     if request.method == 'POST':
+#         try:
+#             # Get the image data from the POST request
+#             image_data = json.loads(request.body)['image']
+#             # Remove the "data:image/jpeg;base64," header
+#             image_data = image_data.split(',')[1]
+            
+#             # Decode base64 image
+#             image_bytes = base64.b64decode(image_data)
+#             image_array = np.frombuffer(image_bytes, dtype=np.uint8)
+#             frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+            
+#             # Convert frame to RGB (DeepFace expects RGB)
+#             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+#             # Perform emotion analysis
+#             result = DeepFace.analyze(rgb_frame, actions=['emotion'], enforce_detection=False)
+#             emotion = result[0]['dominant_emotion']
+            
+#             return JsonResponse({'emotion': emotion})
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=500)
+    
+#     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+genai.configure(api_key='AIzaSyCGFbnuJG47vu5q0X7afsy66y0aUimv8mM')
+model = genai.GenerativeModel('gemini-pro')
+
+def generate_music_prompts(emotion):
+    """
+    Generate dynamic music prompts using Gemini API based on the detected emotion
+    """
+    prompt_template = f"""
+    Generate 5 unique and creative prompts for music generation based on the emotion: {emotion}.
+    Each prompt should:
+    1. Be specific about musical elements (tempo, instruments, mood, genre)
+    2. Be descriptive and evocative
+    3. Include atmospheric or contextual details
+    4. Be suitable for AI music generation
+    5. Be 1-2 sentences long
+    
+    Format each prompt on a new line and make them diverse in style and genre.
+    Don't number them or add any prefixes.
+    """
+    
+    try:
+        response = model.generate_content(prompt_template)
+        # Split the response into individual prompts and clean them
+        prompts = [prompt.strip() for prompt in response.text.split('\n') if prompt.strip()]
+        # Take only the first 5 prompts if more are generated
+        return prompts[:5]
+    except Exception as e:
+        print(f"Error generating prompts: {str(e)}")
+        # Fallback prompts in case of API error
+        return [
+            f"Create an emotive {emotion} piece with piano and strings",
+            f"Generate a {emotion} soundtrack with atmospheric elements",
+            f"Compose a {emotion} melody with modern instruments",
+            f"Design a {emotion} ambient track with nature sounds",
+            f"Produce a {emotion} fusion piece with world music elements"
+        ]
+
+@csrf_exempt
+def detect_emotion(request):
+    if request.method == 'POST':
+        try:
+            # Get the image data from the POST request
+            image_data = json.loads(request.body)['image']
+            # Remove the "data:image/jpeg;base64," header
+            image_data = image_data.split(',')[1]
+            
+            # Decode base64 image
+            image_bytes = base64.b64decode(image_data)
+            image_array = np.frombuffer(image_bytes, dtype=np.uint8)
+            frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+            
+            # Convert frame to RGB (DeepFace expects RGB)
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Perform emotion analysis
+            result = DeepFace.analyze(rgb_frame, actions=['emotion'], enforce_detection=False)
+            emotion = result[0]['dominant_emotion']
+            
+            # Generate dynamic music prompts using Gemini
+            music_prompts = generate_music_prompts(emotion)
+            
+            return JsonResponse({
+                'emotion': emotion,
+                'music_prompts': music_prompts
+            })
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=400)

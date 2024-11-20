@@ -1,0 +1,531 @@
+{% comment %} <!DOCTYPE html>
+<html>
+<head>
+    <title>Dynamic Emotion & Music Prompts</title>
+    <style>
+        .container {
+            text-align: center;
+            margin: 50px auto;
+            max-width: 800px;
+            font-family: Arial, sans-serif;
+        }
+        #video {
+            margin-bottom: 20px;
+            border-radius: 10px;
+        }
+        .result-container {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #f5f5f5;
+        }
+        #emotion-result {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        #prompts-container {
+            text-align: left;
+            margin-top: 20px;
+        }
+        .prompt-card {
+            background-color: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border-left: 4px solid #4CAF50;
+        }
+        .prompt-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        #startButton {
+            font-size: 18px;
+            padding: 12px 24px;
+            margin-bottom: 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #startButton:hover {
+            background-color: #45a049;
+        }
+        .loading {
+            display: none;
+            margin: 20px 0;
+            font-style: italic;
+            color: #666;
+        }
+        .refresh-button {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.3s;
+        }
+        .refresh-button:hover {
+            background-color: #1976D2;
+        }
+        .emotion-emoji {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        .copied-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: none;
+            animation: fadeInOut 2s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            15% { opacity: 1; }
+            85% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button id="startButton">Start Camera</button>
+        <div>
+            <video id="video" width="640" height="480" autoplay style="display: none;"></video>
+            <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+        </div>
+        <div class="loading" id="loadingText">
+            Analyzing emotion and generating unique prompts...
+        </div>
+        <div class="result-container" style="display: none;" id="resultContainer">
+            <div class="emotion-emoji" id="emotionEmoji"></div>
+            <div id="emotion-result"></div>
+            <h3>AI-Generated Music Prompts:</h3>
+            <div id="prompts-container"></div>
+            <button class="refresh-button" id="refreshPrompts">
+                Generate New Prompts
+            </button>
+        </div>
+    </div>
+    <div class="copied-message" id="copiedMessage">Prompt copied to clipboard!</div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const emotionResult = document.getElementById('emotion-result');
+        const promptsContainer = document.getElementById('prompts-container');
+        const startButton = document.getElementById('startButton');
+        const loadingText = document.getElementById('loadingText');
+        const resultContainer = document.getElementById('resultContainer');
+        const refreshButton = document.getElementById('refreshPrompts');
+        const emotionEmoji = document.getElementById('emotionEmoji');
+        const copiedMessage = document.getElementById('copiedMessage');
+        let currentEmotion = '';
+        let stream = null;
+
+        const emotionToEmoji = {
+            'happy': '😊',
+            'sad': '😢',
+            'angry': '😠',
+            'surprise': '😮',
+            'fear': '😨',
+            'disgust': '🤢',
+            'neutral': '😐'
+        };
+
+        startButton.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                startButton.style.display = 'none';
+                loadingText.style.display = 'block';
+                
+                setTimeout(captureAndAnalyze, 2000);
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                emotionResult.textContent = 'Error accessing camera';
+            }
+        });
+
+        refreshButton.addEventListener('click', async () => {
+            if (currentEmotion) {
+                loadingText.style.display = 'block';
+                await generateNewPrompts(currentEmotion);
+                loadingText.style.display = 'none';
+            }
+        });
+
+        async function generateNewPrompts(emotion) {
+            try {
+                const response = await fetch('/detect_emotion/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        image: canvas.toDataURL('image/jpeg'),
+                        regenerate: true 
+                    })
+                });
+
+                const data = await response.json();
+                if (data.music_prompts) {
+                    displayPrompts(data.music_prompts);
+                }
+            } catch (error) {
+                console.error('Error generating new prompts:', error);
+            }
+        }
+
+        function displayPrompts(prompts) {
+            promptsContainer.innerHTML = prompts
+                .map(prompt => `
+                    <div class="prompt-card" onclick="copyToClipboard(this)">
+                        ${prompt}
+                    </div>
+                `).join('');
+        }
+
+        function copyToClipboard(element) {
+            const text = element.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                copiedMessage.style.display = 'block';
+                setTimeout(() => {
+                    copiedMessage.style.display = 'none';
+                }, 2000);
+            });
+        }
+
+        async function captureAndAnalyze() {
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = canvas.toDataURL('image/jpeg');
+
+            try {
+                const response = await fetch('/detect_emotion/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const data = await response.json();
+                
+                if (data.emotion) {
+                    loadingText.style.display = 'none';
+                    resultContainer.style.display = 'block';
+                    currentEmotion = data.emotion;
+                    
+                    emotionEmoji.textContent = emotionToEmoji[data.emotion.toLowerCase()] || '😐';
+                    emotionResult.textContent = `Detected Emotion: ${data.emotion}`;
+                    
+                    displayPrompts(data.music_prompts);
+
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                        video.style.display = 'none';
+                    }
+                } else if (data.error) {
+                    loadingText.style.display = 'none';
+                    emotionResult.textContent = `Error: ${data.error}`;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                loadingText.style.display = 'none';
+                emotionResult.textContent = 'Error detecting emotion';
+            }
+        }
+    </script>
+</body>
+</html> {% endcomment %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dynamic Emotion & Music Prompts</title>
+    <style>
+        .container {
+            text-align: center;
+            margin: 50px auto;
+            max-width: 800px;
+            font-family: Arial, sans-serif;
+        }
+        #video {
+            margin-bottom: 20px;
+            border-radius: 10px;
+        }
+        .result-container {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #f5f5f5;
+        }
+        #emotion-result {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        #prompts-container {
+            text-align: left;
+            margin-top: 20px;
+        }
+        .prompt-card {
+            background-color: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border-left: 4px solid #4CAF50;
+        }
+        .prompt-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .button {
+            font-size: 18px;
+            padding: 12px 24px;
+            margin: 10px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: inline-block;
+            text-decoration: none;
+        }
+        .green-button {
+            background-color: #4CAF50;
+        }
+        .green-button:hover {
+            background-color: #45a049;
+        }
+        .blue-button {
+            background-color: #2196F3;
+        }
+        .blue-button:hover {
+            background-color: #1976D2;
+        }
+        .purple-button {
+            background-color: #9C27B0;
+        }
+        .purple-button:hover {
+            background-color: #7B1FA2;
+        }
+        .button-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .loading {
+            display: none;
+            margin: 20px 0;
+            font-style: italic;
+            color: #666;
+        }
+        .emotion-emoji {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        .copied-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: none;
+            animation: fadeInOut 2s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            15% { opacity: 1; }
+            85% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="button-container">
+            <button id="startButton" class="button green-button">Start Camera</button>
+            <a href='{% url "home" %}' class="button purple-button">Back to Generator</a>
+        </div>
+        <div>
+            <video id="video" width="640" height="480" autoplay style="display: none;"></video>
+            <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+        </div>
+        <div class="loading" id="loadingText">
+            Analyzing emotion and generating unique prompts...
+        </div>
+        <div class="result-container" style="display: none;" id="resultContainer">
+            <div class="emotion-emoji" id="emotionEmoji"></div>
+            <div id="emotion-result"></div>
+            <h3>AI-Generated Music Prompts:</h3>
+            <div id="prompts-container"></div>
+            <div class="button-container">
+                <button class="button blue-button" id="refreshPrompts">
+                    Generate New Prompts
+                </button>
+                <button class="button green-button" id="recaptureButton">
+                    Recapture Emotion
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="copied-message" id="copiedMessage">Prompt copied to clipboard!</div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const emotionResult = document.getElementById('emotion-result');
+        const promptsContainer = document.getElementById('prompts-container');
+        const startButton = document.getElementById('startButton');
+        const loadingText = document.getElementById('loadingText');
+        const resultContainer = document.getElementById('resultContainer');
+        const refreshButton = document.getElementById('refreshPrompts');
+        const recaptureButton = document.getElementById('recaptureButton');
+        const emotionEmoji = document.getElementById('emotionEmoji');
+        const copiedMessage = document.getElementById('copiedMessage');
+        let currentEmotion = '';
+        let stream = null;
+
+        const emotionToEmoji = {
+            'happy': '😊',
+            'sad': '😢',
+            'angry': '😠',
+            'surprise': '😮',
+            'fear': '😨',
+            'disgust': '🤢',
+            'neutral': '😐'
+        };
+
+        // Function to start camera and analysis
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                startButton.style.display = 'none';
+                loadingText.style.display = 'block';
+                resultContainer.style.display = 'none';
+                
+                setTimeout(captureAndAnalyze, 2000);
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                emotionResult.textContent = 'Error accessing camera';
+            }
+        }
+
+        // Event listeners
+        startButton.addEventListener('click', startCamera);
+        recaptureButton.addEventListener('click', startCamera);
+
+        refreshButton.addEventListener('click', async () => {
+            if (currentEmotion) {
+                loadingText.style.display = 'block';
+                await generateNewPrompts(currentEmotion);
+                loadingText.style.display = 'none';
+            }
+        });
+
+        async function generateNewPrompts(emotion) {
+            try {
+                const response = await fetch('/detect_emotion/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        image: canvas.toDataURL('image/jpeg'),
+                        regenerate: true 
+                    })
+                });
+
+                const data = await response.json();
+                if (data.music_prompts) {
+                    displayPrompts(data.music_prompts);
+                }
+            } catch (error) {
+                console.error('Error generating new prompts:', error);
+            }
+        }
+
+        function displayPrompts(prompts) {
+            promptsContainer.innerHTML = prompts
+                .map(prompt => `
+                    <div class="prompt-card" onclick="copyToClipboard(this)">
+                        ${prompt}
+                    </div>
+                `).join('');
+        }
+
+        function copyToClipboard(element) {
+            const text = element.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                copiedMessage.style.display = 'block';
+                setTimeout(() => {
+                    copiedMessage.style.display = 'none';
+                }, 2000);
+            });
+        }
+
+        async function captureAndAnalyze() {
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = canvas.toDataURL('image/jpeg');
+
+            try {
+                const response = await fetch('/detect_emotion/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const data = await response.json();
+                
+                if (data.emotion) {
+                    loadingText.style.display = 'none';
+                    resultContainer.style.display = 'block';
+                    currentEmotion = data.emotion;
+                    
+                    emotionEmoji.textContent = emotionToEmoji[data.emotion.toLowerCase()] || '😐';
+                    emotionResult.textContent = `Detected Emotion: ${data.emotion}`;
+                    
+                    displayPrompts(data.music_prompts);
+
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                        video.style.display = 'none';
+                    }
+                } else if (data.error) {
+                    loadingText.style.display = 'none';
+                    emotionResult.textContent = `Error: ${data.error}`;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                loadingText.style.display = 'none';
+                emotionResult.textContent = 'Error detecting emotion';
+            }
+        }
+    </script>
+</body>
+</html>
