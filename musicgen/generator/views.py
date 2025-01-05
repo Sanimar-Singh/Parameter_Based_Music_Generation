@@ -206,7 +206,7 @@ def emotion_view(request):
     
 #     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
-genai.configure(api_key='AIzaSyCGFbnuJG47vu5q0X7afsy66y0aUimv8mM')
+genai.configure(api_key='YOUR_KEY_HERE')
 model = genai.GenerativeModel('gemini-pro')
 
 def generate_music_prompts(emotion):
